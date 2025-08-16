@@ -1,0 +1,127 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(DESeq2)
+library(ggplot2)
+library(ComplexHeatmap)
+library(org.Hs.eg.db) # library(org.Mm.eg.db) for mouse
+library(EnhancedVolcano)
+library(clusterProfiler)
+library(AnnotationDbi)
+```
+
+```{r}
+# load sample by gene count data
+
+counts <- read.delim("C:/RNA_Seq_Analysis/data/count.out", header = TRUE, row.names = 1)
+```
+
+```{r}
+counts <- counts[which(rowSums(counts) > 0),] # filter rows with only 0
+counts
+```
+
+```{r}
+condition <-  factor(c("C","S","C","S","C","S","C","S"))
+coldata <- data.frame(row.names = colnames(counts), condition)
+coldata
+```
+
+```{r}
+# Run DeSEQ2
+
+dds <- DESeqDataSetFromMatrix(countData = counts, colData = coldata, design = ~condition)
+dds <- DESeq(dds)
+vsdata <- vst(dds, blind = FALSE)
+```
+
+```{r}
+# PCA plot
+
+plotPCA(vsdata, intgroup="condition")+ theme_grey()
+
+```
+
+```{r}
+res <- results(dds, contrast = c("condition", "S", "C")) #DeSEQ2 result
+res
+```
+
+```{r}
+res <- na.omit(res)
+res.df <- as.data.frame(res)
+res.df
+```
+```{r}
+# save DeSEQ2 output
+
+write.csv(res.df, "C:/RNA_Seq_Analysis/data/deseq_out.csv", row.names = TRUE)
+```
+
+```{r}
+
+res.df$symbol <- mapIds(org.Hs.eg.db, keys = rownames(res.df), keytype = "ENSEMBL", column = "SYMBOL")
+res.df <- res.df[!is.na(res.df$symbol),]
+res.df
+
+```
+
+```{r}
+# Volcano plot 
+
+EnhancedVolcano(res.df, x = 'log2FoldChange', y = 'padj', lab = res.df$symbol,
+                  pCutoff = 0.05, FCcutoff = 0.5)
+
+
+```
+
+```{r}
+# Volcano plot using ggplot2
+
+res.df$expression <- "NOT"
+res.df$expression[res.df$padj < 0.05 & res.df$log2FoldChange > 0.5] <- "UP"
+res.df$expression[res.df$padj < 0.05 & res.df$log2FoldChange < -0.5] <- "DOWN"
+
+ggplot(data = res.df, aes(x = log2FoldChange, y = -log10(padj), col = expression)) +
+  geom_vline(xintercept = c(-0.5, 0.5), col = "gray", linetype = 'dashed') +
+  geom_hline(yintercept = -log10(0.05), col = "gray", linetype = 'dashed') +
+  geom_point(size = 2) +
+  scale_color_manual(values = c("#3498DB", "grey", "#E74C3C"), 
+                     labels = c("Downregulated", "Not significant", "Upregulated")) +
+  theme_classic()
+
+
+```
+```{r}
+
+sigs.df <- res.df[res.df$padj < 0.05,]
+sigs.df <- sigs.df[(sigs.df$baseMean > 100) & (abs(sigs.df$log2FoldChange) > 1),]
+sigs.df
+
+```
+
+
+```{r}
+
+mat <- counts(dds, normalized=T)[rownames(sigs.df),]
+mat.z <- t(apply(mat, 1, scale))
+colnames(mat.z) <- rownames(coldata)
+
+```
+
+```{r}
+# heatmap of "significant"  DEGs
+
+Heatmap(mat.z, cluster_rows = T, cluster_columns = T, column_labels = colnames(mat.z),
+        name = "Z-score", row_labels = sigs.df[rownames(mat.z),]$symbol)
+
+
+```
+
+
+
+
+

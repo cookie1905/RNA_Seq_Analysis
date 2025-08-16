@@ -1,0 +1,93 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(org.Hs.eg.db) # library(org.Mm.eg.db) for mouse
+library(clusterProfiler)
+library(AnnotationDbi)
+```
+
+```{r}
+# load DeSEQ2 result
+
+res.df <- read.csv("C:/RNA_Seq_Analysis/data/deseq_out.csv", header = TRUE, row.names = 1)
+res.df
+
+```
+
+```{r}
+# mapping ENSEMBL IDs to gene symbols
+
+res.df$symbol <- mapIds(org.Hs.eg.db, keys = rownames(res.df), keytype = "ENSEMBL", column = "SYMBOL")
+res.df <- res.df[!is.na(res.df$symbol),]
+res.df
+
+```
+
+```{r}
+
+sigs.df <- res.df[(res.df$padj < 0.05) & (abs(res.df$log2FoldChange) > 0.5),]
+genes_to_test <- rownames(sigs.df) 
+genes_to_test
+```
+
+```{r}
+# GO enrichment analysis
+
+go <- enrichGO(gene = genes_to_test, OrgDb = "org.Hs.eg.db", keyType = "ENSEMBL",
+               ont = "BP")
+
+# keyType = SYMBOL if we have gene symbols in genes_to_test instead of ENSEMBl IDs
+```
+
+
+```{r}
+as.data.frame(go)
+```
+
+```{r}
+# top 10 enriched pathways in samples compared to controls
+
+barplot(go, showCategory = 10, color = "p.adjust") +
+   theme_classic() +
+  scale_fill_gradient(low = "lightblue", high = "dodgerblue") 
+
+```
+```{r}
+# GSEA using all genes not filtered by padj or logfold change
+
+res_ordered <- res.df[order(-res.df$stat),] # order desc by stat column 
+gene_list <- res_ordered$stat
+names(gene_list) <- rownames(res_ordered)
+
+head(gene_list, 30)
+
+```
+
+```{r}
+# GSEA plot
+
+gsea <- gseGO(gene_list,
+              ont = "BP",
+              keyType = "ENSEMBL",
+              OrgDb = "org.Hs.eg.db",
+              eps = 1e-300) # more precise calculations, but can be slightly slower.
+```
+
+```{r}
+as.data.frame(gsea)
+```
+
+```{r}
+
+gseaplot(gsea, by = "all", title = gsea$Description[1], geneSetID = 1)
+
+```
+```{r}
+
+dotplot(gsea, showCategory = 5, split = ".sign") + facet_grid(.~.sign)
+
+```
+
