@@ -1,0 +1,45 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{bash}
+
+# data
+
+# SRR14168768 - X2_Ctr_S2
+# SRR14168771 - X2_RS_S6
+# SRR14168772 - X3_Ctr_S7
+# SRR14168775 - X3_RS_S12
+# SRR14168776 - X4_Ctr_S13
+# SRR14168779 - X4_RS_S16
+# SRR14168780 - X5_Ctr_S1
+# SRR14168783 - X5_RS_S9
+
+# downloaded fastq using 
+
+# fasterq-dump SRR14168768 --progress
+```
+
+```{bash}
+# reads are single end 
+# generate genome index using STAR
+
+STAR --runMode genomeGenerate --genomeDir ref/ --genomeFastaFiles Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa --sjdbGTFfile Homo_sapiens.GRCh38.114.gtf --runThreadN 12
+
+```
+
+```{bash}
+
+# map raeds to regerence genome
+
+STAR --runMode alignReads --genomeDir ../ref/ --outSAMtype BAM SortedByCoordinate --readFilesIn SRR14168779.fastq --runThreadN 12 --outFileNamePrefix ../mapped/SRR14168779
+
+```
+
+```{bash}
+# get count data
+
+featureCounts -a Homo_sapiens.GRCh38.114.chr.gtf -o count.out -T 8 bams/*.bam
+```
+
