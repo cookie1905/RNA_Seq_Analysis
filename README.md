@@ -15,9 +15,11 @@ This repository contains an example RNA-seq analysis pipeline for practice purpo
 2. **Pathway/Functional Enrichment Analysis**  
    Explore enriched pathways or biological functions based on the differentially expressed genes.
 
-## Notes
-- This example is meant for practice and demonstration of typical RNA-seq workflows.
-- All analyses start from count data; raw FASTQ processing is not included.
+## Data Source
+The RNA-seq data analyzed in this repository was obtained from: 
+Matthews C, Gorenne I, Scott S, et al. Vascular smooth muscle cells undergo telomere-based senescence in human atherosclerosis: effects of telomerase and oxidative stress. Circ Res. 2006;99(2):156-164. doi:10.1161/01.RES.0000233315.38086.bc
+
+GEO Accession number: GSE171663
 
 ![Alt text](images/pca_plot.png)
 ![Alt text](images/diff_heatmap.png)
