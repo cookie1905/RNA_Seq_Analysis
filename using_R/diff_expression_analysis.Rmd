@@ -14,7 +14,7 @@ library(AnnotationDbi)
 ```
 
 ```{r}
-# load sample by gene count data
+# load raw gene-level counts 
 
 counts <- read.delim("C:/RNA_Seq_Analysis/data/count.out", header = TRUE, row.names = 1)
 ```
