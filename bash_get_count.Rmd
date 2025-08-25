@@ -38,7 +38,7 @@ STAR --runMode alignReads --genomeDir ../ref/ --outSAMtype BAM SortedByCoordinat
 ```
 
 ```{bash}
-# get count data
+# get raw gene-level counts - count.out
 
 featureCounts -a Homo_sapiens.GRCh38.114.chr.gtf -o count.out -T 8 bams/*.bam
 ```
