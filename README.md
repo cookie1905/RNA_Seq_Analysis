@@ -21,19 +21,7 @@ Matthews C, Gorenne I, Scott S, et al. Vascular smooth muscle cells undergo telo
 
 GEO Accession number: GSE171663
 
-## Visualizations
-<p float="left">
-  <img src="images/pca_plot.png" width="400" />
-  <img src="images/diff_heatmap.png" width="400" />
-</p>
 
-<p float="left">
-  <img src="images/ggplot_volcano.png" width="400" />
-  <img src="images/go_barplot.png" width="400" />
-</p>
 
-<p float="left">
-  <img src="images/gsea_dotplot.png" width="400" />
-</p>
 
 
