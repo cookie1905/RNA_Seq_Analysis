@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "Differential Expression Analysis of RNA-seq data using DESeq2"
 output: html_notebook
 ---
 
@@ -9,25 +9,32 @@ library(ggplot2)
 library(ComplexHeatmap)
 library(org.Hs.eg.db) # library(org.Mm.eg.db) for mouse
 library(EnhancedVolcano)
-library(clusterProfiler)
-library(AnnotationDbi)
 ```
 
 ```{r}
 # load raw gene-level counts 
 
 counts <- read.delim("C:/RNA_Seq_Analysis/data/count.out", header = TRUE, row.names = 1)
+dim(counts)
 ```
 
 ```{r}
-counts <- counts[which(rowSums(counts) > 0),] # filter rows with only 0
-counts
+# Filtering: removed genes with 0 reads in all samples.
+counts <- counts[which(rowSums(counts) > 0),] 
+dim(counts)
 ```
+```{r}
+head(counts)
+```
+
 
 ```{r}
 condition <-  factor(c("C","S","C","S","C","S","C","S"))
 coldata <- data.frame(row.names = colnames(counts), condition)
 coldata
+```
+```{r}
+levels(coldata$condition)
 ```
 
 ```{r}
@@ -35,11 +42,12 @@ coldata
 
 dds <- DESeqDataSetFromMatrix(countData = counts, colData = coldata, design = ~condition)
 dds <- DESeq(dds)
-vsdata <- vst(dds, blind = FALSE)
+
 ```
 
 ```{r}
-# PCA plot
+# Variance-Stabilizing Transformation (VST) & PCA
+vsdata <- vst(dds, blind = FALSE)
 
 plotPCA(vsdata, intgroup="condition")+ theme_grey()
 
@@ -55,11 +63,7 @@ res <- na.omit(res)
 res.df <- as.data.frame(res)
 res.df
 ```
-```{r}
-# save DeSEQ2 output
 
-write.csv(res.df, "C:/RNA_Seq_Analysis/data/deseq_out.csv", row.names = TRUE)
-```
 
 ```{r}
 
@@ -73,7 +77,7 @@ res.df
 # Volcano plot 
 
 EnhancedVolcano(res.df, x = 'log2FoldChange', y = 'padj', lab = res.df$symbol,
-                  pCutoff = 0.05, FCcutoff = 0.5)
+                  pCutoff = 0.05, FCcutoff = 1)
 
 
 ```
@@ -82,11 +86,11 @@ EnhancedVolcano(res.df, x = 'log2FoldChange', y = 'padj', lab = res.df$symbol,
 # Volcano plot using ggplot2
 
 res.df$expression <- "NOT"
-res.df$expression[res.df$padj < 0.05 & res.df$log2FoldChange > 0.5] <- "UP"
-res.df$expression[res.df$padj < 0.05 & res.df$log2FoldChange < -0.5] <- "DOWN"
+res.df$expression[res.df$padj < 0.05 & res.df$log2FoldChange > 1] <- "UP"
+res.df$expression[res.df$padj < 0.05 & res.df$log2FoldChange < -1] <- "DOWN"
 
 ggplot(data = res.df, aes(x = log2FoldChange, y = -log10(padj), col = expression)) +
-  geom_vline(xintercept = c(-0.5, 0.5), col = "gray", linetype = 'dashed') +
+  geom_vline(xintercept = c(-1, 1), col = "gray", linetype = 'dashed') +
   geom_hline(yintercept = -log10(0.05), col = "gray", linetype = 'dashed') +
   geom_point(size = 2) +
   scale_color_manual(values = c("#3498DB", "grey", "#E74C3C"), 
@@ -95,17 +99,18 @@ ggplot(data = res.df, aes(x = log2FoldChange, y = -log10(padj), col = expression
 
 
 ```
-```{r}
 
+```{r}
+# Find significant genes
 sigs.df <- res.df[res.df$padj < 0.05,]
-sigs.df <- sigs.df[(sigs.df$baseMean > 100) & (abs(sigs.df$log2FoldChange) > 1),]
+sigs.df <- sigs.df[(abs(sigs.df$log2FoldChange) > 1),]
 sigs.df
 
 ```
 
 
 ```{r}
-
+# heatmap of "significant"  DEGs
 mat <- counts(dds, normalized=T)[rownames(sigs.df),]
 mat.z <- t(apply(mat, 1, scale))
 colnames(mat.z) <- rownames(coldata)
@@ -113,10 +118,19 @@ colnames(mat.z) <- rownames(coldata)
 ```
 
 ```{r}
-# heatmap of "significant"  DEGs
 
-Heatmap(mat.z, cluster_rows = T, cluster_columns = T, column_labels = colnames(mat.z),
-        name = "Z-score", row_labels = sigs.df[rownames(mat.z),]$symbol)
+library(grid)  # for gpar()
+
+Heatmap(
+  mat.z,
+  cluster_rows = TRUE,
+  cluster_columns = TRUE,
+  column_labels = colnames(mat.z),
+  name = "Z-score",
+  row_labels = sigs.df[rownames(mat.z),]$symbol,
+  row_names_gp = gpar(fontsize = 8),    
+  column_names_gp = gpar(fontsize = 10) 
+)
 
 
 ```

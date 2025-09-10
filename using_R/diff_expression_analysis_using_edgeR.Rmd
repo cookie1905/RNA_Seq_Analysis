@@ -1,0 +1,139 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(edgeR)
+library(ggplot2)
+library(ComplexHeatmap)
+library(org.Hs.eg.db)
+library(EnhancedVolcano)
+```
+
+```{r}
+# Reading in the Data
+counts <- read.delim("C:/RNA_Seq_Analysis/data/count.out", header = TRUE, row.names = 1)
+dim(counts)
+```
+
+```{r}
+# Filtering: removed genes with 0 reads in all samples.
+counts <- counts[which(rowSums(counts) > 0),] 
+dim(counts)
+```
+```{r}
+head(counts)
+```
+```{r}
+# Creating a DGEList object
+group <- factor(c("Ctr", "RS", "Ctr", "RS", "Ctr", "RS", "Ctr", "RS"))
+
+dgList <- DGEList(counts=counts, genes=rownames(counts), group = group)
+```
+
+```{r}
+dgList
+# dgList$samples
+# head(dgList$counts)
+# head(dgList$genes)
+```
+```{r}
+# Normalization
+dgList <- calcNormFactors(dgList, method="TMM")
+dgList$samples
+```
+
+
+```{r}
+# Examine inter-sample relationship
+# plotMDS(dgList)
+
+plotMDS(dgList, col=as.numeric(dgList$samples$group), pch=19, main="MDS Plot")
+legend("bottomleft", legend=levels(group), col=1:length(levels(dgList$samples$group)), pch=19)
+
+```
+```{r}
+# Estimate dispersions
+dgList <- estimateCommonDisp(dgList)
+dgList <- estimateTrendedDisp(dgList)
+dgList <- estimateTagwiseDisp(dgList)
+
+```
+
+```{r}
+
+plotBCV(dgList)
+```
+```{r}
+# Perform exact test for differential expression
+et <- exactTest(dgList, pair=c("Ctr","RS"))
+et
+plotMD(et, main="MA Plot", ylim=c(-5,5))
+```
+```{r}
+# `topTags(et, n=Inf)´ show all genes ranked by p-value.
+res <- topTags(et, n=Inf)$table
+res
+```
+```{r}
+any(is.na(res)) # If TRUE then res <- na.omit(res)
+```
+```{r}
+res$symbol <- mapIds(org.Hs.eg.db, keys = rownames(res), keytype = "ENSEMBL", column = "SYMBOL")
+res <- res[!is.na(res$symbol),]
+res
+```
+```{r}
+# Volcano plots for differentially expressed genes
+
+res$expression <- "NOT"
+res$expression[res$FDR < 0.05 & res$logFC > 1] <- "UP"
+res$expression[res$FDR < 0.05 & res$logFC < -1] <- "DOWN"
+
+ggplot(data = res, aes(x = logFC, y = -log10(FDR), col = expression)) +
+  geom_vline(xintercept = c(-1, 1), col = "gray", linetype = 'dashed') +
+  geom_hline(yintercept = -log10(0.05), col = "gray", linetype = 'dashed') +
+  geom_point(size = 2) +
+  scale_color_manual(values = c("#3498DB", "grey", "#E74C3C"), 
+                     labels = c("Downregulated", "Not significant", "Upregulated")) +
+  theme_classic()
+```
+```{r}
+
+EnhancedVolcano(res, x = 'logFC', y = 'FDR', lab = res$symbol,
+                  pCutoff = 0.05, FCcutoff = 1)
+```
+
+```{r}
+# Find significant genes
+sigs <- res[res$FDR < 0.05 & abs(res$logFC) > 1, ]
+sigs
+```
+
+```{r}
+
+# Heatmap of differentially expressed genes
+
+mat <- cpm(dgList, log=TRUE, prior.count=1)[rownames(sigs),]
+mat.z <- t(apply(mat, 1, scale))
+colnames(mat.z) = colnames(mat)
+
+head(mat.z)
+```
+
+```{r}
+library(grid)  # for gpar()
+
+Heatmap(
+  mat.z,
+  cluster_rows = TRUE,
+  cluster_columns = TRUE,
+  column_labels = colnames(mat.z),
+  name = "Z-score",
+  row_labels = sigs[rownames(mat.z),]$symbol,
+  row_names_gp = gpar(fontsize = 8),    
+  column_names_gp = gpar(fontsize = 10) 
+)
+```
+
